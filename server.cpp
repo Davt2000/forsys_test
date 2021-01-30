@@ -4,6 +4,7 @@
 #include <vector>
 #include <iostream>
 #include <zmq.hpp>
+#include <unistd.h>
 
 namespace fs = std::filesystem;
 
@@ -84,22 +85,30 @@ void concat_back(char * str, student& st){
     strcat(str, "\0");
 }
 
-bool send(zmq::socket_t& socket, const std::string& string) {
-    zmq::message_t message(string.size());
-    std::memcpy (message.data(), string.data(), string.size());
-    bool rc = socket.send (message);
-    return (rc);
-}
-
-void zmq_server_send(student_list& output) {
+[[noreturn]] void zmq_server_start_broadcast(student_list& output) {
     char buf[255];
     zmq::context_t context(1);
     zmq::socket_t socket(context, ZMQ_PUB);
-    socket.bind("tcp://127.0.0.1:5555");
-    zmq::message_t request;
-    for (auto item : output) {
+    socket.bind("tcp://*:5555");
+    string_list dataToSend;
+
+    for (auto item : output){
         concat_back(buf, item);
-        send(socket, (std::string) buf);
+        std::string s = buf;
+        dataToSend.push_back(s);
+    }
+
+    while (true){
+        std::cout << "Starting broadcast\n";
+        for (auto item : dataToSend) {
+            usleep(100000);
+            std::stringstream ss;
+            ss << item << std::endl;
+            zmq::message_t request((void *) ss.str().c_str(), ss.str().size() + 1, nullptr);
+            int rc = socket.send(request);
+            std::cout << "Data \"" << item << '\"' << " sent." << std::endl;
+        }
+        usleep(1000000);
     }
 }
 
@@ -144,7 +153,7 @@ int main(int argc, char * argv[]) {
         }
     }
 
-    zmq_server_send(listToSend);
+    zmq_server_start_broadcast(listToSend);
     return 0;
 }
 

@@ -18,23 +18,33 @@
 #include <string>
 #include <iostream>
 #include <zmq.hpp>
+#include <zmq.hpp>
+#include <unistd.h>
 
+int main (void)
+{
+    zmq::context_t context(1);
+    const char * protocol =
+            "tcp://localhost:5555";
+    //  Socket to talk to server
+    printf ("Connecting to hello world server...");
+    zmq::socket_t sock (context, ZMQ_SUB);
+    sock.connect(protocol);
+    sock.setsockopt (ZMQ_SUBSCRIBE, "", 0);
+    printf ("done. \n");
 
+    zmq::message_t reply;
+    sock.recv (&reply, 0);
+    std::string receivedData;
+    receivedData = reply.to_string();
+    printf ("Received Word %d bytes: \"%s\"\n", reply.size(), receivedData.c_str());
+    printf ("Proceeding to main loop\n");
+    while(true){
 
-int main(){
-    char * data;
-    zmq::context_t zmq_context(1);
-    zmq::socket_t zmq_socket(zmq_context, ZMQ_SUB);
-    zmq_socket.connect("tcp://127.0.0.1:5555");
-    zmq_msg_t msg;
-    int rc = zmq_msg_init (&msg);
-    assert (rc == 0);
-/* Block until a message is available to be received from socket */
-    rc = zmq_socket.recv(&msg, 255);
-    assert (rc == 0);
-/* Release message */ zmq_msg_close (&msg);
-    data = (char *) zmq_msg_data(&msg);
-    std::cout << data;
-
+        zmq::message_t reply;
+        sock.recv (&reply, 0);
+        printf ("Received Word %d bytes: \"%s\"\n", reply.size(), receivedData.c_str());
+    }
+    sock.close();
     return 0;
 }
