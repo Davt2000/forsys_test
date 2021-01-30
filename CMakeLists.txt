@@ -19,12 +19,12 @@ find_library(ZeroMQ_LIBRARY
         PATHS ${PC_ZeroMQ_LIBRARY_DIRS}
         )
 
-add_executable(forsys_server server.cpp)
+add_executable(forsys_server server.cpp common.hpp)
 target_include_directories(forsys_server PUBLIC ${ZeroMQ_INCLUDE_DIR})
 target_link_libraries(forsys_server PUBLIC ${ZeroMQ_LIBRARY})
 
 
 
-add_executable(forsys_client client.cpp)
+add_executable(forsys_client client.cpp common.hpp)
 target_include_directories(forsys_client PUBLIC ${ZeroMQ_INCLUDE_DIR})
 target_link_libraries(forsys_client PUBLIC ${ZeroMQ_LIBRARY})

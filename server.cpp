@@ -1,22 +1,8 @@
-#include <string>
-#include <filesystem>
 #include <fstream>
-#include <vector>
 #include <iostream>
 #include <zmq.hpp>
 #include <unistd.h>
-
-namespace fs = std::filesystem;
-
-struct student{
-    int id{};
-    std::string fullName;
-    std::string dateOfBirth;
-};
-
-typedef std::vector<student> student_list;
-typedef std::vector<std::string> string_list;
-
+#include "common.hpp"
 
 int scan_data_folder(const std::string& dataFolder, string_list &output){
     for (const auto & entry : fs::directory_iterator(dataFolder))
@@ -24,21 +10,7 @@ int scan_data_folder(const std::string& dataFolder, string_list &output){
             output.push_back(entry.path());
 }
 
-int parse_string(student& student_out,const std::string& input){
-    std::string reference = input;
-    student_out.id = stoi(reference.substr(0, reference.find(' ')));
-    reference = reference.substr(reference.find(' ') + 1);
 
-    student_out.fullName = "";
-    student_out.fullName += reference.substr(0, reference.find(' '));
-    reference = reference.substr(reference.find(' ') + 1);
-    student_out.fullName += " " + reference.substr(0, reference.find(' '));
-    reference = reference.substr(reference.find(' ') + 1);
-    if(isalpha(reference[0]))      // case there is 3 part full name
-        student_out.fullName += " " + reference.substr(0, reference.find(' '));
-
-    student_out.dateOfBirth = reference;
-}
 
 int prepare_to_send(string_list &pcs, std::string &s){
     std::string s_copy = s;
@@ -99,7 +71,6 @@ void concat_back(char * str, student& st){
     strcat(str, st.fullName.c_str());
     strcat(str, " ");
     strcat(str, st.dateOfBirth.c_str());
-    strcat(str, "\0");
 }
 
 [[noreturn]] void zmq_server_start_broadcast(student_list& output) {
@@ -120,8 +91,9 @@ void concat_back(char * str, student& st){
         std::cout << "Starting broadcast\n";
         usleep(150000);
         for (auto item0 : dataToBreak) {
-            std::cout << "Atomic broadcast for single item initiated\n";
-
+            if(VERBOSE){
+                std::cout << "Atomic broadcast for single item initiated\n";
+            }
             string_list dataToSend;
             prepare_to_send(dataToSend, item0);
             for(auto item1 : dataToSend){
@@ -131,18 +103,26 @@ void concat_back(char * str, student& st){
                 zmq::message_t request((void *) ss.str().c_str(), ss.str().size() + 1, nullptr);
 
                 int rc = socket.send(request);
-                std::cout << "Data \"" << item1 << '\"' << " sent." << std::endl;
-            }
+                if(VERBOSE){
+                    std::cout << "Data \"" << item1 << '\"' << " sent." << std::endl;
+                }            }
         }
         usleep(200000);
+        for(int i = 0; i < 25; i++)
+        {
+            usleep(10000);
+            std::stringstream ss;
+            ss << "^"; // improvised EndOfTranslation
+            zmq::message_t request((void *) ss.str().c_str(), ss.str().size() + 1, nullptr);
+            socket.send(request);
+        }
+            // somehow sometimes client does not hear this ending and somehow sending message
+            // stops working being wrapped in function. So, this ridiculous cycle exists for the reliability
 
-        std::stringstream ss;
-        ss << "^"; // improvised EndOfTranslation
-        zmq::message_t request((void *) ss.str().c_str(), ss.str().size() + 1, nullptr);
-        int rc = socket.send(request);
-
-        std::cout << "All data sent.\n";
-        std::cout << "Job is done.\n";
+        if(VERBOSE){
+            std::cout << "All data sent.\n";
+            std::cout << "Job is done.\n";
+        }
         socket.close();
         exit(0);
     }
