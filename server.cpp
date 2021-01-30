@@ -3,6 +3,8 @@
 #include <fstream>
 #include <vector>
 #include <iostream>
+#include <zmq.hpp>
+
 namespace fs = std::filesystem;
 
 struct student{
@@ -70,8 +72,36 @@ int collapse_similar(student_list& output, student_list& input){
     }
 }
 
-int send_zmq(student_list& output){
+void concat_back(char * string, student& st){
+    std::string s = std::to_string(st.id);
+    char const *pchar = s.c_str();
+    memset(string, 0, 255);
+    strcat(string, pchar);
+    strcat(string, " ");
+    strcat(string, st.fullName.c_str());
+    strcat(string, " ");
+    strcat(string, st.dateOfBirth.c_str());
+}
 
+bool send(zmq::socket_t& socket, const char* data) {
+    size_t size = strlen(data); // Assuming your char* is NULL-terminated
+    zmq::message_t message(size);
+    std::memcpy (message.data(), data, size);
+    bool rc = socket.send (message);
+    return (rc);
+}
+
+void zmq_server_send(student_list& output) {
+    char *buf = nullptr;
+    zmq::context_t context(1);
+    zmq::socket_t socket(context, ZMQ_PUB);
+    socket.bind("tcp://*:5555");
+    zmq::message_t request;
+    for (auto item : output) {
+        concat_back(buf, item);
+        send(socket, buf);
+
+    }
 }
 
 int send_html(student_list& output){
@@ -115,8 +145,7 @@ int main(int argc, char * argv[]) {
         }
     }
 
-    send_zmq(listToSend);
-    print_list(listToSend);
+    zmq_server_send(listToSend);
 
     return 0;
 }
