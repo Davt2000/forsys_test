@@ -40,6 +40,21 @@ int parse_string(student& student_out,const std::string& input){
     student_out.dateOfBirth = reference;
 }
 
+int string_to_pieces(string_list &pcs, std::string &s){
+    std::string s_copy = s;
+    int pivot = 14;
+    while(!s_copy.empty()){
+        if(s_copy.size() >= pivot) {
+            pcs.push_back(s_copy.substr(0, pivot));
+            s_copy = s_copy.substr(pivot);
+        } else{
+            pcs.push_back(s_copy);
+            s_copy = "";
+        }
+    }
+    return 0;
+}
+
 int read_data(const std::string& filename, student_list& studentList){
     std::string line;
     std::fstream file (filename);
@@ -90,23 +105,28 @@ void concat_back(char * str, student& st){
     zmq::context_t context(1);
     zmq::socket_t socket(context, ZMQ_PUB);
     socket.bind("tcp://*:5555");
-    string_list dataToSend;
+    string_list dataToBreak;
 
     for (auto item : output){
         concat_back(buf, item);
         std::string s = buf;
-        dataToSend.push_back(s);
+        dataToBreak.push_back(s);
     }
 
     while (true){
         std::cout << "Starting broadcast\n";
-        for (auto item : dataToSend) {
-            usleep(100000);
-            std::stringstream ss;
-            ss << item << std::endl;
-            zmq::message_t request((void *) ss.str().c_str(), ss.str().size() + 1, nullptr);
-            int rc = socket.send(request);
-            std::cout << "Data \"" << item << '\"' << " sent." << std::endl;
+        for (auto item0 : dataToBreak) {
+            string_list dataToSend;
+            string_to_pieces(dataToSend, item0);
+            for(auto item1 : dataToSend){
+                usleep(100000);
+                std::stringstream ss;
+                ss << item1 << std::endl;
+                zmq::message_t request((void *) ss.str().c_str(), ss.str().size() + 1, nullptr);
+
+                int rc = socket.send(request);
+                std::cout << "Data \"" << item1 << '\"' << " sent." << std::endl;
+            }
         }
         usleep(1000000);
     }
