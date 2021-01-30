@@ -40,9 +40,11 @@ int parse_string(student& student_out,const std::string& input){
     student_out.dateOfBirth = reference;
 }
 
-int string_to_pieces(string_list &pcs, std::string &s){
+int prepare_to_send(string_list &pcs, std::string &s){
     std::string s_copy = s;
     int pivot = 14;
+    pcs.push_back("%");     // delimiter, which will be useful in combining string back by client
+                            // entries are divided by '%', sessions by '^'
     while(!s_copy.empty()){
         if(s_copy.size() >= pivot) {
             pcs.push_back(s_copy.substr(0, pivot));
@@ -113,22 +115,36 @@ void concat_back(char * str, student& st){
         dataToBreak.push_back(s);
     }
 
+
     while (true){
         std::cout << "Starting broadcast\n";
+        usleep(150000);
         for (auto item0 : dataToBreak) {
+            std::cout << "Atomic broadcast for single item initiated\n";
+
             string_list dataToSend;
-            string_to_pieces(dataToSend, item0);
+            prepare_to_send(dataToSend, item0);
             for(auto item1 : dataToSend){
-                usleep(100000);
+                usleep(150000);
                 std::stringstream ss;
-                ss << item1 << std::endl;
+                ss << item1;
                 zmq::message_t request((void *) ss.str().c_str(), ss.str().size() + 1, nullptr);
 
                 int rc = socket.send(request);
                 std::cout << "Data \"" << item1 << '\"' << " sent." << std::endl;
             }
         }
-        usleep(1000000);
+        usleep(200000);
+
+        std::stringstream ss;
+        ss << "^"; // improvised EndOfTranslation
+        zmq::message_t request((void *) ss.str().c_str(), ss.str().size() + 1, nullptr);
+        int rc = socket.send(request);
+
+        std::cout << "All data sent.\n";
+        std::cout << "Job is done.\n";
+        socket.close();
+        exit(0);
     }
 }
 
