@@ -72,35 +72,34 @@ int collapse_similar(student_list& output, student_list& input){
     }
 }
 
-void concat_back(char * string, student& st){
+void concat_back(char * str, student& st){
     std::string s = std::to_string(st.id);
     char const *pchar = s.c_str();
-    memset(string, 0, 255);
-    strcat(string, pchar);
-    strcat(string, " ");
-    strcat(string, st.fullName.c_str());
-    strcat(string, " ");
-    strcat(string, st.dateOfBirth.c_str());
+    memset(str, 0, 255);
+    strcat(str, pchar);
+    strcat(str, " ");
+    strcat(str, st.fullName.c_str());
+    strcat(str, " ");
+    strcat(str, st.dateOfBirth.c_str());
+    strcat(str, "\0");
 }
 
-bool send(zmq::socket_t& socket, const char* data) {
-    size_t size = strlen(data); // Assuming your char* is NULL-terminated
-    zmq::message_t message(size);
-    std::memcpy (message.data(), data, size);
+bool send(zmq::socket_t& socket, const std::string& string) {
+    zmq::message_t message(string.size());
+    std::memcpy (message.data(), string.data(), string.size());
     bool rc = socket.send (message);
     return (rc);
 }
 
 void zmq_server_send(student_list& output) {
-    char *buf = nullptr;
+    char buf[255];
     zmq::context_t context(1);
     zmq::socket_t socket(context, ZMQ_PUB);
-    socket.bind("tcp://*:5555");
+    socket.bind("tcp://127.0.0.1:5555");
     zmq::message_t request;
     for (auto item : output) {
         concat_back(buf, item);
-        send(socket, buf);
-
+        send(socket, (std::string) buf);
     }
 }
 
@@ -146,13 +145,9 @@ int main(int argc, char * argv[]) {
     }
 
     zmq_server_send(listToSend);
-
     return 0;
 }
 
-// read data from 'data' into a vector of lists
-// create a common list
-// send
 
 
 //  == ЗАДАЧА 1 (С++ ZMQ) ==
