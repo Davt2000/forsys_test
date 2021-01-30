@@ -1,3 +1,5 @@
+-- sqlite dialect
+
 CREATE TABLE table1(
                        id INTEGER PRIMARY KEY AUTOINCREMENT,
                        value TEXT
